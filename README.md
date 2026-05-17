@@ -119,7 +119,7 @@ models:
 
 ```
 metrics:
-  primary: f1
+  primary: roc_auc
   scoring:
     - accuracy
     - precision
@@ -146,7 +146,7 @@ Precision measures how often the model is correct when it predicts no-show.
 true no-shows predicted / all predicted no-shows
 ```
 
-It is useful when false alarms are costly.
+It is useful when false alarms are costly (false positives)
 
 ### Recall
 
@@ -156,15 +156,13 @@ Recall measures how many actual no-shows the model successfully catches.
 true no-shows predicted / all actual no-shows
 ```
 
-It is useful when missing no-shows is costly.
+It is useful when missing no-shows is costly (false negatives).
 
 ### F1 Score
 
 F1 score balances precision and recall.
 
 It is useful when both false positives and false negatives matter.
-
-This project uses `f1` as the primary metric.
 
 ### ROC AUC
 
@@ -176,6 +174,7 @@ ROC AUC measures how well the model separates show and no-show bookings across d
 0.8 = good
 0.9+ = very strong
 ```
+This project uses `roc_auc` as the primary metric.
 
 ## Current Result
 
@@ -186,7 +185,7 @@ random_forest    0.6832     0.5786  0.5315 0.5541   0.7206
   extra_trees    0.6652     0.5479  0.5489 0.5484   0.6894
 ```
 
-Based on the primary metric `f1`, the best model is:
+Based on the primary metric `roc_auc`, the best model is:
 
 ```
 XGBoost
@@ -195,7 +194,7 @@ XGBoost
 with:
 
 ```
-F1 score = 0.5777
+roc_auc score = 0.7734
 ```
 
 ## Feature Importance
@@ -249,6 +248,73 @@ Important note:
 ```
 Feature importance shows predictive usefulness, not causation.
 ```
+
+## SHAP Feature Importance
+
+SHAP feature importance is also generated in:
+
+```
+src/feature_importance.py
+```
+
+Unlike `model.feature_importances_`, SHAP explains each prediction by estimating how much each transformed feature pushes the model output higher or lower. The project ranks features by their mean absolute SHAP value:
+
+```python
+shap_importance_df = importance_analyzer.get_top_shap_features(
+    fitted_pipelines[best_model_name],
+    X_test,
+    top_n=10,
+    sample_size=1000,
+)
+```
+
+The SHAP beeswarm visual is generated with:
+
+```python
+importance_analyzer.plot_shap_beeswarm(
+    fitted_pipelines[best_model_name],
+    X_test,
+    sample_size=1000,
+    max_display=20,
+    show=False,
+)
+plt.tight_layout()
+plt.savefig("shap_beeswarm.png", dpi=300, bbox_inches="tight")
+```
+
+The beeswarm plot shows:
+
+- Features ranked from most influential to least influential.
+- Each dot as one booking in the sampled test data.
+- Dot position as the SHAP impact on the prediction.
+- Dot color as the feature value, where red is higher and blue is lower.
+
+Current top 10 SHAP feature importance for the best model, XGBoost:
+
+```
+                            feature  mean_abs_shap
+         categorical__first_time_no         0.9031
+ categorical__arrival_month_january         0.4755
+         categorical__country_china         0.3315
+     categorical__arrival_month_may         0.2631
+     categorical__country_singapore         0.2456
+categorical__arrival_month_december         0.2383
+            categorical__room_queen         0.1817
+categorical__arrival_month_november         0.1724
+    categorical__arrival_month_july         0.1668
+         categorical__country_japan         0.1637
+```
+
+Based on SHAP, the features with the largest impact on model predictions are:
+
+- `first_time_no`: the strongest SHAP feature. Whether a guest is not a first-time customer has the largest average effect on the model output.
+- `arrival_month`: several arrival-month indicators appear near the top, especially January, May, December, November, and July. This suggests seasonality is important for predicting no-shows.
+- `country`: China, Singapore, and Japan are among the most influential country indicators, meaning guest origin contributes meaningfully to the prediction.
+- `room_queen`: room type also affects the model, though less strongly than first-time status and the leading arrival-month/country features.
+- `price_sgd_imputed`: price appears in the beeswarm plot, showing that booking price still affects predictions, but it is not in the top 10 by mean absolute SHAP value.
+
+
+![SHAP beeswarm plot](shap_beeswarm.png)
 
 ## How To Run
 

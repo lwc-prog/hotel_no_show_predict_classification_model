@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from feature_engineering import HotelNoShowFeatureEngineer
 from feature_importance import HotelNoShowFeatureImportance
@@ -59,6 +60,28 @@ def main():
 
     print(f"\nTop 10 feature importance for best model ({best_model_name}):")
     print(feature_importance_df.round(4).to_string(index=False))
+
+    shap_importance_df = importance_analyzer.get_top_shap_features(
+        fitted_pipelines[best_model_name],
+        X_test,
+        top_n=10,
+        sample_size=1000,
+    )
+
+    print(f"\nTop 10 SHAP feature importance for best model ({best_model_name}):")
+    print(shap_importance_df.round(4).to_string(index=False))
+
+    print("\nGenerating SHAP beeswarm plot...")
+    importance_analyzer.plot_shap_beeswarm(
+        fitted_pipelines[best_model_name],
+        X_test,
+        sample_size=1000,
+        max_display=20,
+        show=False,
+    )
+    plt.tight_layout()
+    plt.savefig("shap_beeswarm.png", dpi=300, bbox_inches="tight")
+    print("Saved SHAP beeswarm plot to shap_beeswarm.png")
 
 
 if __name__ == "__main__":

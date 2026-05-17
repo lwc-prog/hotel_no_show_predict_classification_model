@@ -35,7 +35,7 @@ models:
     random_state: 42
 
 metrics:
-  primary: f1
+  primary: roc_auc
   scoring:
     - accuracy
     - precision
